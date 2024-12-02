@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minijuego con Puntuación y Boss</title>
+  <style>
+    canvas {
+      background-color: #cce7ff;
+      display: block;
+      margin: 0 auto;
+    }
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <h1>Minijuego: Salta y Esquiva</h1>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+  <h2 id="score">Puntuación: 0</h2>
+  <h2 id="status"></h2>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Configuración del jugador
+    const player = {
+      x: 100,
+      y: 300,
+      width: 20,
+      height: 50,
+      color: "#000",
+      velocityY: 0,
+      gravity: 0.5,
+      jumpPower: -10,
+      isJumping: false,
+    };
+
+    // Configuración del suelo
+    const groundHeight = 50;
+
+    // Obstáculos
+    const obstacles = [];
+    let obstacleSpeed = 5;
+    const obstacleWidth = 20;
+    const obstacleHeight = 50;
+    const spawnInterval = 1500; // Cada 1.5 segundos
+    let bossMode = false;
+
+    // Puntuación
+    let score = 0;
+    const scoreElement = document.getElementById("score");
+    const statusElement = document.getElementById("status");
+
+    // Manejo del clic derecho para saltar
+    canvas.addEventListener("contextmenu", (event) => {
+      event.preventDefault(); // Evitar el menú del navegador
+      if (!player.isJumping) {
+        player.velocityY = player.jumpPower;
+        player.isJumping = true;
+      }
+    });
+
+    // Dibujar el jugador
+    function drawPlayer() {
+      ctx.fillStyle = player.color;
+      ctx.fillRect(player.x, player.y, player.width, player.height);
+    }
+
+    // Dibujar el suelo
+    function drawGround() {
+      ctx.fillStyle = "#654321";
+      ctx.fillRect(0, canvas.height - groundHeight, canvas.width, groundHeight);
+    }
+
+    // Crear nuevos obstáculos
+    function spawnObstacle() {
+      if (!bossMode) {
+        obstacles.push({
+          x: canvas.width,
+          y: canvas.height - groundHeight - obstacleHeight,
+          width: obstacleWidth,
+          height: obstacleHeight,
+          color: "red",
+        });
+      }
+    }
+
+    // Dibujar obstáculos
+    function drawObstacles() {
+      ctx.fillStyle = "red";
+      for (const obstacle of obstacles) {
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      }
+    }
+
+    // Actualizar obstáculos
+    function updateObstacles() {
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        obstacles[i].x -= obstacleSpeed;
+
+        // Detectar colisión
+        if (
+          player.x < obstacles[i].x + obstacles[i].width &&
+          player.x + player.width > obstacles[i].x &&
+          player.y < obstacles[i].y + obstacles[i].height &&
+          player.y + player.height > obstacles[i].y
+        ) {
+          endGame("¡Perdiste! Te golpeó un obstáculo.");
+          return;
+        }
+
+        // Eliminar obstáculos fuera de la pantalla
+        if (obstacles[i].x + obstacles[i].width < 0) {
+          obstacles.splice(i, 1);
+          score++;
+          scoreElement.textContent = `Puntuación: ${score}`;
+
+          // Activar el modo Boss si la puntuación es suficiente
+          if (score >= 20 && !bossMode) {
+            startBossMode();
+          }
+        }
+      }
+    }
+
+    // Iniciar el modo Boss
+    function startBossMode() {
+      bossMode = true;
+      statusElement.textContent = "¡El Boss ha aparecido!";
+      obstacles.push({
+        x: canvas.width,
+        y: canvas.height - groundHeight - 100,
+        width: 100,
+        height: 100,
+        color: "purple", // Boss
+      });
+      setTimeout(() => {
+        endGame("¡Ganaste! Has derrotado al Boss.");
+      }, 10000); // Sobrevive 10 segundos para ganar
+    }
+
+    // Dibujar el Boss
+    function drawBoss() {
+      ctx.fillStyle = "purple";
+      for (const obstacle of obstacles) {
+        if (obstacle.color === "purple") {
+          ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+        }
+      }
+    }
+
+    // Terminar el juego
+    function endGame(message) {
+      statusElement.textContent = message;
+      clearInterval(obstacleSpawner);
+      cancelAnimationFrame(animationFrame);
+    }
+
+    // Actualizar el jugador
+    function updatePlayer() {
+      player.velocityY += player.gravity;
+      player.y += player.velocityY;
+
+      // Evitar que atraviese el suelo
+      if (player.y + player.height > canvas.height - groundHeight) {
+        player.y = canvas.height - groundHeight - player.height;
+        player.velocityY = 0;
+        player.isJumping = false;
+      }
+    }
+
+    // Bucle principal del juego
+    let animationFrame;
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawGround();
+      drawPlayer();
+      drawObstacles();
+
+      if (bossMode) {
+        drawBoss();
+      }
+
+      updatePlayer();
+      updateObstacles();
+
+      animationFrame = requestAnimationFrame(gameLoop);
+    }
+
+    // Iniciar el juego
+    const obstacleSpawner = setInterval(spawnObstacle, spawnInterval);
+    gameLoop();
+  </script>
+</body>
+</html>
